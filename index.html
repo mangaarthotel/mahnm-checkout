@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>MANGA ART HOTEL NAGOYA</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #F6F4EF; color: #151515;
+         font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+  header { background: #151515; color: #F6F4EF; padding: 16px 20px;
+           display: flex; justify-content: space-between; align-items: center; }
+  header b { font-size: 20px; letter-spacing: .04em; }
+  header small { display: block; font-size: 10px; letter-spacing: .14em; }
+  .lang button { min-width: 48px; height: 36px; border: 1px solid #F6F4EF;
+                 background: transparent; color: #F6F4EF; font-weight: 700; font-size: 14px; }
+  .lang button.on { background: #F6F4EF; color: #151515; }
+  main { padding: 24px 20px; max-width: 480px; margin: 0 auto; }
+  .box { background: #fff; border: 2px solid #151515; padding: 18px 20px;
+         display: flex; justify-content: space-between; align-items: baseline; }
+  .label { font-size: 13px; font-weight: 700; color: #4A4A4A; }
+  .big { font-size: 40px; font-weight: 900; letter-spacing: .12em; }
+  .note { font-size: 13px; line-height: 1.7; color: #3A3A3A; text-align: center; margin: 24px 0 10px; }
+  .btn { width: 100%; height: 56px; border: 0; background: #C8321F; color: #fff;
+         font-size: 17px; font-weight: 900; margin-top: 8px; }
+  .btn:disabled { opacity: .6; }
+  .sub { width: 100%; height: 48px; border: 1.5px solid #151515; background: #fff;
+         font-size: 15px; font-weight: 700; margin-top: 10px; color: #151515; }
+  h1 { font-size: 24px; line-height: 1.4; margin: 16px 0 12px; }
+  p { font-size: 15px; line-height: 1.8; color: #3A3A3A; }
+  .hide { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <div><b>漫泊</b><small>MANGA ART HOTEL NAGOYA</small></div>
+  <div class="lang">
+    <button id="ja" type="button">日本語</button><button id="en" type="button">EN</button>
+  </div>
+</header>
+
+<main>
+  <section id="loading"><p data-t="loading"></p></section>
+
+  <section id="invalid" class="hide">
+    <h1 data-t="invalidTitle"></h1>
+    <p data-t="invalidBody"></p>
+  </section>
+
+  <section id="stay" class="hide">
+    <div class="box"><span class="label" data-t="room"></span><span class="big" id="room"></span></div>
+    <div class="note" data-t="leaveNote"></div>
+    <button class="btn" type="button" id="toConfirm" data-t="checkoutBtn"></button>
+  </section>
+
+  <section id="confirm" class="hide">
+    <h1 data-t="confirmTitle"></h1>
+    <p data-t="confirmBody"></p>
+    <button class="btn" type="button" id="yes" data-t="yes"></button>
+    <button class="sub" type="button" id="no" data-t="no"></button>
+  </section>
+
+  <section id="done" class="hide">
+    <h1 data-t="doneTitle"></h1>
+    <p data-t="doneBody"></p>
+  </section>
+</main>
+
+<script>
+  // Apps Script の公開用URL（/exec）
+  const API = 'https://script.google.com/macros/s/AKfycbwARbukWcQzoxIDXQCZj2Uwryngv0_pZAfqWjTonEV6sko0EennNO4BbBrOwsEBv1I/exec';
+  const KEY = new URLSearchParams(location.search).get('k') || '';
+
+  const T = {
+    ja: {
+      loading: '読み込み中…',
+      room: '部屋番号',
+      leaveNote: 'お部屋を出るときに押してください',
+      checkoutBtn: 'チェックアウトする',
+      confirmTitle: 'チェックアウトしますか？',
+      confirmBody: 'お部屋を出るときだけ押してください。連泊中の方は押さないでください。',
+      yes: 'チェックアウトする', no: '戻る', sending: '送信中…',
+      doneTitle: 'チェックアウト完了。またの夜に。',
+      doneBody: 'ご宿泊ありがとうございました。カードは出口のBOXへお願いします。',
+      error: '送信できませんでした。もう一度お試しいただくか、フロントへご連絡ください。',
+      invalidTitle: 'このQRは使えません',
+      invalidBody: 'お手数ですがフロントへご連絡ください。'
+    },
+    en: {
+      loading: 'Loading…',
+      room: 'Room',
+      leaveNote: 'Tap when you leave the room',
+      checkoutBtn: 'Check out',
+      confirmTitle: 'Check out now?',
+      confirmBody: 'Please tap only when you are leaving. If you are staying another night, do not tap.',
+      yes: 'Check out', no: 'Back', sending: 'Sending…',
+      doneTitle: 'Checked out. See you another night.',
+      doneBody: 'Thank you for staying with us. Please drop the card in the box at the exit.',
+      error: 'Could not send. Please try again or contact the front desk.',
+      invalidTitle: 'This QR code is not valid',
+      invalidBody: 'Please contact the front desk.'
+    }
+  };
+  let lang = (navigator.language || 'ja').startsWith('ja') ? 'ja' : 'en';
+
+  function setLang(l) {
+    lang = l;
+    document.getElementById('ja').className = l === 'ja' ? 'on' : '';
+    document.getElementById('en').className = l === 'en' ? 'on' : '';
+    document.documentElement.lang = l;
+    document.querySelectorAll('[data-t]').forEach(el => { el.textContent = T[l][el.dataset.t]; });
+  }
+  function show(id) {
+    ['loading', 'invalid', 'stay', 'confirm', 'done'].forEach(s => {
+      document.getElementById(s).classList.toggle('hide', s !== id);
+    });
+  }
+  // Google のログイン情報は送らない（cross-origin の既定）ので、ゲストのログイン状態に左右されない
+  async function call(action) {
+    const res = await fetch(API + '?action=' + action + '&k=' + encodeURIComponent(KEY));
+    if (!res.ok) throw new Error('http ' + res.status);
+    return res.json();
+  }
+
+  async function init() {
+    if (!KEY) return show('invalid');
+    try {
+      const r = await call('info');
+      if (!r.ok) return show('invalid');
+      document.getElementById('room').textContent = r.room;
+      show('stay');
+    } catch (e) {
+      show('invalid');
+    }
+  }
+
+  async function doCheckout() {
+    const btn = document.getElementById('yes');
+    btn.disabled = true;
+    btn.textContent = T[lang].sending;
+    try {
+      const r = await call('checkout');
+      if (!r.ok) throw new Error('ng');
+      show('done');
+    } catch (e) {
+      alert(T[lang].error);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = T[lang].yes;
+    }
+  }
+
+  document.getElementById('ja').onclick = () => setLang('ja');
+  document.getElementById('en').onclick = () => setLang('en');
+  document.getElementById('toConfirm').onclick = () => show('confirm');
+  document.getElementById('no').onclick = () => show('stay');
+  document.getElementById('yes').onclick = doCheckout;
+
+  setLang(lang);
+  init();
+</script>
+</body>
+</html>
